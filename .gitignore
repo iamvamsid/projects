@@ -1,0 +1,20 @@
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ai-proj/
+venv/
+env/
+
+# Data corpus (gitignored per CLAUDE.md conventions)
+data/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
