@@ -13,6 +13,7 @@ env/
 # Corpus / build artifacts (kept local)
 data/*
 !data/.gitkeep
+storage/      # persisted vector index (regenerable via `python -m src.ingest`)
 
 # OS / editor
 .DS_Store

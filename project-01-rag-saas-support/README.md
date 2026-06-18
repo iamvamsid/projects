@@ -2,7 +2,7 @@
 
 > An AI assistant that answers customer support questions for a B2B software product by retrieving from the product's documentation and resolved issues, **with citations**. Built to deflect repetitive support tickets without giving customers wrong answers.
 
-**Status:** 🚧 Week 1 — scaffold only. Retrieval/generation logic lands Week 2; eval harness Week 3.
+**Status:** ✅ Working end-to-end (Week 2). Ask a question → grounded, cited answer over the Supabase docs, with escalation when the answer isn't in the corpus. Automated eval + retrieval tuning lands Week 3.
 
 ---
 
@@ -54,13 +54,47 @@ cp .env.example .env   # then add your API keys
 
 ## Usage
 
-_Placeholder — wired up in Week 2._
+**1. Build the knowledge base** (clean → chunk → embed → persist the index):
 
 ```bash
-python -m src.ingest      # build the knowledge base
-python -m src.generate    # ask a question
-python -m src.eval        # run the eval harness
+python -m src.ingest            # full build (embeds + persists to storage/)
+python -m src.ingest --stats    # local only: cleanup + chunk counts, no API calls
 ```
+
+**2. Inspect retrieval** (which chunks come back for a query):
+
+```bash
+python -m src.retrieve "how do I enable row level security?"
+```
+
+**3. Ask a question** (grounded, cited answer; escalates if not in the corpus):
+
+```bash
+python -m src.generate "how do I enable row level security?"
+```
+
+**4. Run the golden-question eval pass:**
+
+```bash
+python -m src.run_golden        # writes evals/golden-run.md
+```
+
+### Example
+
+```
+$ python -m src.generate "How do I enable row level security on a table?"
+
+Answer:
+You can enable Row Level Security (RLS) on a table using:
+    alter table "table_name" enable row level security;
+Once enabled, no data is accessible until you create policies [1]. ...
+
+Sources:
+  [1] row-level-security.mdx  (score 0.689)
+  ...
+```
+
+A question with no answer in the corpus (e.g. a billing/refund request) is **declined and escalated** rather than answered — see `evals/day5-findings.md`.
 
 ## Success metrics (what we'll measure)
 

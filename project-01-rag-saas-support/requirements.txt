@@ -1,4 +1,10 @@
-anthropic>=0.49.0
-openai>=1.68.0
-python-dotenv>=1.0.0
-pydantic>=2.0.0
+# --- Core SDKs ---
+anthropic>=0.49.0          # Claude API client (answer generation)
+openai>=1.68.0             # used here for embeddings (and as a comparison LLM)
+python-dotenv>=1.0.0       # load API keys from .env
+pydantic>=2.0.0            # typed data models / validation
+
+# --- RAG framework (Week 2) ---
+llama-index-core>=0.11.0              # the framework: ingestion, indexing, retrieval, query engines
+llama-index-llms-anthropic>=0.3.0     # adapter so LlamaIndex can use Claude as the LLM
+llama-index-embeddings-openai>=0.2.0  # adapter so LlamaIndex can use OpenAI embeddings
