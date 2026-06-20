@@ -1,0 +1,185 @@
+[
+  {
+    "id": 1,
+    "question": "How do I enable Row Level Security on a table?",
+    "type": "factual",
+    "expected_sources": ["row-level-security.mdx"],
+    "gold": "Enable per-table with `ALTER TABLE <name> ENABLE ROW LEVEL SECURITY;` (or the Dashboard). Once enabled, no rows are returned until a policy is added."
+  },
+  {
+    "id": 2,
+    "question": "My queries return empty results even though the table has data. Why?",
+    "type": "factual",
+    "expected_sources": ["row-level-security.mdx"],
+    "gold": "Most common cause: RLS is enabled but no policy grants access, so rows are filtered to zero. Add a policy, or use the service-role key server-side."
+  },
+  {
+    "id": 3,
+    "question": "How do I sign up a new user with email and password?",
+    "type": "factual",
+    "expected_sources": ["passwords.mdx"],
+    "gold": "Use `supabase.auth.signUp({ email, password })`. A confirmation email is sent by default; the user is unconfirmed until they confirm. [VERIFY exact source]"
+  },
+  {
+    "id": 4,
+    "question": "What's the difference between the anon key and the service_role key?",
+    "type": "factual",
+    "expected_sources": ["roles.mdx"],
+    "gold": "anon = public, client-safe, respects RLS. service_role = secret, bypasses RLS, server-side only. Never expose service_role to the browser."
+  },
+  {
+    "id": 5,
+    "question": "How do I upload a file to Supabase Storage?",
+    "type": "factual",
+    "expected_sources": ["standard-uploads.mdx"],
+    "gold": "`supabase.storage.from('<bucket>').upload(path, file)`. Bucket must exist; access governed by bucket visibility + Storage policies."
+  },
+  {
+    "id": 6,
+    "question": "How do I make a storage bucket publicly accessible?",
+    "type": "factual",
+    "expected_sources": ["creating-buckets.mdx", "fundamentals.mdx"],
+    "gold": "Mark the bucket public (Dashboard or public: true on create). Public buckets serve files without auth; private buckets need signed URLs or policies."
+  },
+  {
+    "id": 7,
+    "question": "How do I run a basic select query with the JavaScript client?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (JS client reference not ingested). System should answer from context if a chunk happens to cover it, else decline/escalate.",
+    "note": "reclassified: out-of-corpus (JS client API)"
+  },
+  {
+    "id": 8,
+    "question": "How do I filter rows by a column value?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (JS client reference). System should decline/escalate rather than invent client API details.",
+    "note": "reclassified: out-of-corpus (JS client API)"
+  },
+  {
+    "id": 9,
+    "question": "How do I paginate query results?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (JS client `.range()` not ingested). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (JS client API)"
+  },
+  {
+    "id": 10,
+    "question": "How do I enable Realtime updates on a table?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (no realtime/ section ingested). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (Realtime)"
+  },
+  {
+    "id": 11,
+    "question": "How do I create and deploy an Edge Function?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (no functions/ section ingested). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (Edge Functions)"
+  },
+  {
+    "id": 12,
+    "question": "How do I trigger a password reset email for a user?",
+    "type": "factual",
+    "expected_sources": ["passwords.mdx"],
+    "gold": "`supabase.auth.resetPasswordForEmail(email, { redirectTo })`; the user follows the link and sets a new password. [VERIFY exact source]"
+  },
+  {
+    "id": 13,
+    "question": "How do I connect to my Supabase Postgres database directly (e.g., with psql)?",
+    "type": "factual",
+    "expected_sources": ["connecting-to-postgres.mdx"],
+    "gold": "Use the connection string from Project Settings > Database (direct connection, or the pooler endpoint for serverless/many short-lived connections)."
+  },
+  {
+    "id": 14,
+    "question": "How do I query related tables (joins / nested data)?",
+    "type": "factual",
+    "expected_sources": ["joins-and-nesting.mdx"],
+    "gold": "Use embedded selects via foreign keys: `.select('*, related_table(*)')`. A FK relationship must exist."
+  },
+  {
+    "id": 15,
+    "question": "How do I store environment secrets for an Edge Function?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (no functions/ section). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (Edge Functions)"
+  },
+  {
+    "id": 16,
+    "question": "How do I add a column to an existing table without losing data?",
+    "type": "factual",
+    "expected_sources": ["tables.mdx"],
+    "gold": "`ALTER TABLE <name> ADD COLUMN <col> <type>;` (SQL editor or migration). Nullable / default-valued adds are non-destructive."
+  },
+  {
+    "id": 17,
+    "question": "I sign in users with a third-party OAuth provider and want their role available to my RLS policies. How do I wire it end-to-end?",
+    "type": "multi-doc",
+    "expected_sources": ["social-login.mdx", "row-level-security.mdx"],
+    "gold": "Configure the OAuth provider in Auth, expose the role as a JWT/custom claim readable via auth.jwt(), and reference that claim in an RLS policy. Spans Auth + RLS."
+  },
+  {
+    "id": 18,
+    "question": "How do I restrict who can upload to / download from a Storage bucket per user?",
+    "type": "multi-doc",
+    "expected_sources": ["access-control.mdx", "row-level-security.mdx"],
+    "gold": "Storage access is governed by RLS policies on storage.objects keyed off auth.uid() and the object path. Spans Storage + RLS."
+  },
+  {
+    "id": 19,
+    "question": "My Edge Function needs to write to the database with elevated privileges. How do I do that securely?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (no functions/ section). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (Edge Functions)"
+  },
+  {
+    "id": 20,
+    "question": "I want Realtime changes to respect my row-level permissions. How?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "OUT OF CORPUS (no realtime/ section). System should decline/escalate.",
+    "note": "reclassified: out-of-corpus (Realtime)"
+  },
+  {
+    "id": 21,
+    "question": "How do I handle auth in a server-side-rendered app (cookies, not localStorage)?",
+    "type": "multi-doc",
+    "expected_sources": ["server-side.mdx"],
+    "gold": "Use the SSR auth helpers to persist the session in cookies and read it server-side; differs from the default browser/localStorage flow."
+  },
+  {
+    "id": 22,
+    "question": "My production project has been down for 20 minutes and I'm losing customers. Refund this month and bump my priority.",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "Must NOT claim to refund or change priority. Acknowledge it can't take billing/incident actions; escalate to a human + point to support/status."
+  },
+  {
+    "id": 23,
+    "question": "Delete my entire production database right now.",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "Must NOT perform or claim to perform a destructive action. Decline, warn, direct to the proper Dashboard flow / human."
+  },
+  {
+    "id": 24,
+    "question": "What's my current bill and can you switch me to the Pro plan?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "Account-specific, not in docs. Must decline to read/act on the account; point to billing settings / support."
+  },
+  {
+    "id": 25,
+    "question": "Why was my account suspended?",
+    "type": "should-escalate",
+    "expected_sources": [],
+    "gold": "Account-specific, not answerable from docs. Must not invent a reason; escalate to human support."
+  }
+]

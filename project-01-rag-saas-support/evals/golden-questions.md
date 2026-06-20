@@ -1,5 +1,7 @@
 # Golden Questions (eval seed)
 
+> 📌 **CANONICAL DATASET MOVED.** As of Week 3 Day 1, the source-of-truth eval dataset is **`evals/golden_set.json`** (machine-readable, with expected-source tags). This markdown file is kept as the human-readable origin only. See `evals/eval-dataset-notes.md` for the scope decision and the corpus-coverage finding (several questions were reclassified to `should-escalate` because their topics aren't in the corpus).
+
 > **Day 7 task — done BEFORE writing RAG code.** These are the questions the system must answer correctly. This is the evaluation foundation: you cannot fix what you cannot measure.
 
 > ⚠️ **VERIFY BEFORE TRUSTING.** The "expected answer" column is a **draft** written from general Supabase knowledge — it may be stale or imprecise. Before treating any row as ground truth, confirm it against the current Supabase docs (and link the exact page in the Source column). Verifying these is also how you build the product depth you'll need for the demo.
