@@ -9,6 +9,14 @@ implementation. No agent loop yet (that's Day 3). A "tool" has two halves:
 Run a standalone check:  python -m src.tools
 """
 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# search_docs embeds queries via OpenAI, so load keys here too (not just in agent.py).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+
 # --- Mock "database" of customer accounts -----------------------------------
 # Canned data standing in for a real account API. In production this function
 # would call your billing/account service; the agent never sees the difference.
@@ -50,9 +58,69 @@ GET_ACCOUNT_STATUS_TOOL = {
 }
 
 
-# --- Registry the agent loop will use (Day 3) -------------------------------
-TOOLS = [GET_ACCOUNT_STATUS_TOOL]                       # what we send to the model
-TOOL_FUNCTIONS = {"get_account_status": get_account_status}  # name -> function
+# --- Tool 2: search_docs (Week 6) — reuse Project 1's retrieval -------------
+# Instead of rebuilding a RAG system, we load Project 1's already-persisted index
+# and expose it as a tool. The agent's knowledge of "how the product works" is
+# literally Project 1, now a capability the agent can call.
+
+# Project 1's persisted index lives in the sibling repo.
+_P1_INDEX = Path(__file__).resolve().parents[2] / "project-01-rag-saas-support" / "storage"
+_P1_EMBED_MODEL = "text-embedding-3-small"   # MUST match Project 1's ingest config
+_p1_index = None
+
+
+def _load_p1_index():
+    """Load Project 1's vector index once, then cache it."""
+    global _p1_index
+    if _p1_index is None:
+        from llama_index.core import Settings, StorageContext, load_index_from_storage
+        from llama_index.embeddings.openai import OpenAIEmbedding
+        Settings.embed_model = OpenAIEmbedding(model=_P1_EMBED_MODEL)
+        ctx = StorageContext.from_defaults(persist_dir=str(_P1_INDEX))
+        _p1_index = load_index_from_storage(ctx)
+    return _p1_index
+
+
+def search_docs(query: str) -> dict:
+    """Search the product documentation. Returns top passages with sources."""
+    if not _P1_INDEX.exists():
+        return {"error": "docs_index_unavailable",
+                "detail": f"No index at {_P1_INDEX}. Build Project 1 first."}
+    nodes = _load_p1_index().as_retriever(similarity_top_k=3).retrieve(query)
+    if not nodes:
+        return {"results": [], "note": "no relevant documentation found"}
+    return {"results": [
+        {"source": n.node.metadata.get("file_name"),
+         "score": round(float(n.score), 3),
+         "text": n.node.get_content()[:500]}
+        for n in nodes
+    ]}
+
+
+SEARCH_DOCS_TOOL = {
+    "name": "search_docs",
+    "description": (
+        "Search the product documentation for how the product works — including what "
+        "features and support levels each plan includes. Use for general 'how do I' and "
+        "'what does X include' questions. Do NOT use it for a customer's specific account "
+        "state (use get_account_status for that)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "What to look up in the docs."}
+        },
+        "required": ["query"],
+    },
+}
+
+
+# --- Registry the agent loop uses -------------------------------------------
+TOOLS = [GET_ACCOUNT_STATUS_TOOL, SEARCH_DOCS_TOOL]          # what we send to the model
+TOOL_FUNCTIONS = {
+    "get_account_status": get_account_status,
+    "search_docs": search_docs,
+}
 
 
 def run_tool(name: str, tool_input: dict) -> dict:
