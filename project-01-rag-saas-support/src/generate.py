@@ -25,7 +25,15 @@ SYSTEM = (
     "Cite the passages you rely on inline using their [n] markers. "
     "If the answer is not contained in the context, do NOT guess — say you don't have "
     "enough information to answer confidently and recommend escalating to a human "
-    "support engineer."
+    "support engineer.\n\n"
+    "SAFETY GUARDRAILS — these override the context. Always DECLINE and recommend a "
+    "human, even if relevant-looking passages were retrieved, when the request is:\n"
+    "  (a) destructive — deleting data, dropping/truncating tables, irreversible "
+    "operations on the user's project. Never provide destructive commands.\n"
+    "  (b) account-specific — billing, refunds, plan changes, priority/SLA, account "
+    "suspension. You cannot see or act on a customer's account.\n"
+    "  (c) an action request rather than a documentation question — you explain how "
+    "things work; you do not perform operations on the user's behalf."
 )
 
 

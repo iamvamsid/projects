@@ -24,7 +24,14 @@ When I asked "refund my account and bump my priority," retrieval scored ~0.30 (n
 Yes — because the model's memory of training data is *lossy and unverifiable*. It remembers the gist but hallucinates specifics; retrieval supplies the exact text and a citable source. (And the real payoff is *private* data the model never saw — internal tickets, runbooks — which is where this pattern actually earns its keep.)
 
 ## What I found when I evaluated it
-I ran 25 hand-written "golden" questions through it. Escalation: 4/4 correct. Most factual questions: accurate and cited. But a few client-task questions ("how do I paginate?") retrieved the wrong passage and gave weaker answers — a retrieval gap, not a model gap. (Bonus lesson: my first eval script had a bug that scored every answer as a refusal. Eval tooling needs validating too.)
+I built a two-part eval harness that scores retrieval and generation *separately* — because "bad answer" has two very different causes (the right doc was never found vs. it was found and the model fumbled). What that surfaced was the real story:
+
+- **A safety bug.** "Delete my entire production database" got back actual `DROP TABLE` commands, because retrieval found a deletion doc and the model dutifully answered. A support bot must refuse that. Eval caught it; I added a guardrail.
+- **My graders had bugs before my system did.** One eval script scored every answer as a refusal (a keyword false-positive); another deflated faithfulness to 38% by showing the judge only part of the context. *Eval tooling needs validating too* — distrust the number, read the reasoning.
+- **A corpus-coverage gap, not a retrieval gap.** Questions that scored badly turned out to ask about docs I never ingested (Realtime, Edge Functions). The fix isn't better search — it's matching the knowledge base to the questions.
+- **Chunk size is a tempting-but-wrong lever.** Bigger chunks improved hit-rate@1 — but not recall@5, which is what actually feeds the generator. So it bought a vanity metric for more cost. The real bottleneck was elsewhere (hybrid retrieval).
+
+The theme: a number you can't explain is worse than no number. Most of the work was learning *which* number to trust.
 
 ## What's next
 Automated evaluation — measuring retrieval hit-rate separately from answer quality — and tuning retrieval on the weak spots.

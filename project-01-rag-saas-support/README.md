@@ -103,6 +103,30 @@ A question with no answer in the corpus (e.g. a billing/refund request) is **dec
 - **Answer correctness** — does it match the gold answer?
 - **Deflection rate** — % of questions answerable without a human (the business metric).
 
+## Evaluation (Week 3)
+
+A two-part eval harness (`src/eval.py`) scores retrieval and generation **separately** — because a bad answer is either "the right doc was never retrieved" or "it was retrieved and the model fumbled," and those need different fixes.
+
+**Retrieval** (deterministic, over 13 answerable golden questions):
+
+| Metric | Score |
+|---|---|
+| hit-rate@1 / @3 / @5 | 54% / 69% / 77% |
+| recall@5 (honest on multi-source) | 73% |
+| MRR | 0.63 |
+
+**Generation** (LLM-as-judge; system = Opus, judge = Sonnet):
+- Correctness ~81%; no faithfulness violations found (n=13).
+- **Critical escalation 4/4** — billing, plan-change, suspension, and destructive ("delete my database") requests are correctly declined and escalated.
+
+**What eval caught that "it works" never would:**
+- A **safety bug** — the system handed out `DROP TABLE` on a "delete everything" request (now guarded).
+- Two **grader bugs** (a keyword false-positive, a context-truncation bug) — *eval tooling needs validating too.*
+- A **corpus-coverage gap** — several questions asked about docs never ingested (reclassified to escalation tests).
+- That **chunk-size tuning moves hit@1 but not recall@5** (what actually feeds generation) — so the next lever is hybrid retrieval, not chunking.
+
+Details in `evals/eval-results.md`, `evals/day3-findings.md`, `evals/eval-dataset-notes.md`.
+
 ## Roadmap
 
 - **Project 1 (this repo):** RAG over docs + resolved issues, grounded answers with citations.

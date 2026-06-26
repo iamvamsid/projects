@@ -116,7 +116,7 @@ def _judge_answerable(q, gold, context, answer):
         "You are grading a support assistant. Respond with ONLY a JSON object.\n\n"
         f"QUESTION:\n{q}\n\n"
         f"GOLD ANSWER (the key facts a correct answer must contain):\n{gold}\n\n"
-        f"RETRIEVED CONTEXT the assistant was given:\n{context[:4000]}\n\n"
+        f"RETRIEVED CONTEXT the assistant was given:\n{context[:16000]}\n\n"
         f"ASSISTANT ANSWER:\n{answer}\n\n"
         "Grade:\n"
         '- "correctness": "correct" | "partial" | "wrong" '
