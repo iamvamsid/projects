@@ -1,6 +1,7 @@
 # Agent Design — B2B SaaS Support Agent (Project 2)
 
-**Status:** Week 5 Day 1 — design. No code yet. This is the blueprint.
+**Status:** Week 6 — shipped. Blueprint below; see "Week 6 — what actually shipped" at the
+bottom for how reality diverged (notably: a third tool, `get_plan_features`).
 
 ## The job
 A **customer support agent** for a B2B SaaS product that handles a ticket end-to-end:
@@ -71,6 +72,36 @@ dead-ends.
 3. **Should escalate:** "Please downgrade my plan to Free." → declines the *action*,
    escalates.
 
-## Out of scope this week
+## Out of scope (Week 5)
 Multiple tools, error recovery when a tool fails, memory across turns, observability —
 all Week 6–7.
+
+---
+
+## Week 6 — what actually shipped
+All three build styles done in Week 5 (`agent.py` manual, `agent_toolrunner.py`,
+`agent_framework.py`). Week 6 built on the manual loop:
+
+**Tools — ended with THREE, not two.** The planned `search_docs` exposed a gap: the agent
+knew the *plan name* (from `get_account_status`) and *features* (from docs), but no source
+**joined** them. Searching product docs for "what does Pro include" returned junk, and the
+agent (correctly) escalated instead of guessing. Fix: added `get_plan_features(plan)` — an
+**entitlements** source (support level, priority support, SLA, seats, SSO). "What a plan
+includes" is entitlements data, not product docs. `lookup_order` / `create_escalation` were
+*not* needed and dropped.
+
+**Multi-step / chaining.** "Does my plan acct_123 include priority support?" chains
+`get_account_status` → `get_plan_features` (dependency order — can't ask what Pro includes
+until you learn the plan is Pro). Independent lookups (account + docs) fire in parallel.
+
+**Error recovery.** `run_tool` never raises — unknown tool, bad/missing args (TypeError),
+unknown plan, and in-tool exceptions all return helpful error dicts (echo input / list valid
+options). The loop tags any error result `is_error: true` so the model adapts.
+
+**Hardening.** Loop guard (repeated identical call → escalate) + max-steps fallback, both
+returning a customer-facing escalation message, never a developer string. Edge cases proven:
+gibberish id → ask for a valid one; ambiguous question → clarify; lookup + forbidden action →
+do the read, refuse + escalate the action *in the same turn*.
+
+**Proof.** `evals/scenarios.py` — 8 scenarios (routing, chaining, failure modes), 8/8 pass;
+any exception from the loop is a crash-fail.

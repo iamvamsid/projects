@@ -2,7 +2,7 @@
 
 > An AI **agent** that handles a customer support ticket end-to-end: it understands the question, **looks up live information using tools**, and either resolves the question or escalates to a human. Where Project 1 *answered from documents*, this one *acts*.
 
-**Status:** 🚧 Week 5 — agent design done, first tool built. The agent loop lands Day 3.
+**Status:** ✅ Week 6 — multi-tool agent working: 3 tools, multi-step chaining, graceful error recovery, 8/8 scenario suite passing.
 
 ## Project 1 vs Project 2
 
@@ -12,24 +12,45 @@
 | Does | answers from documents | fetches live state + acts via tools |
 | Who picks the steps | you (fixed) | the model |
 
-## The agent loop (planned)
+## The agent loop
 
 ```
 user message
   → model decides: answer directly, OR call a tool
-       → (tool call) our code runs the tool, returns the result
+       → (tool call) our code runs the tool, returns the result (tagged is_error on failure)
             → model continues with the result
                  → final answer, or another tool call …
 ```
 
+The model decides **how many** tools to call and **in what order**. Independent lookups
+fire in parallel; dependent ones chain (e.g. find the plan, *then* look up what it includes).
+
 ## Tools
 
-| Tool | What it does | Status |
+| Tool | What it does | Source |
 |---|---|---|
-| `get_account_status(account_id)` | Mock: returns plan, billing status, active incident | ✅ Day 2 |
-| `search_docs(query)` | Reuse Project 1's retrieval as a tool | Week 6 |
+| `get_account_status(account_id)` | Account state: plan, billing status, active incident | mock dict |
+| `search_docs(query)` | Product-docs Q&A — **reuses Project 1's persisted vector index** | Project 1 RAG |
+| `get_plan_features(plan)` | Entitlements: support level, priority support, SLA, seats, SSO | mock dict |
 
-See [`docs/agent-design.md`](docs/agent-design.md) for the full design (workflow, guardrails, "done" definition).
+> **Why three sources, not two:** account state knows the *plan name* and docs know *features*,
+> but neither maps plan → features. "What does my plan include" is **entitlements** data — in
+> production it lives in a billing/entitlements service, not the product docs. `get_plan_features`
+> is that source, and answering "does my plan include X?" **chains** account → entitlements.
+
+## Multi-step, chaining, and error recovery (Week 6)
+
+- **Routing** — with multiple tools, the model picks the right *one* (docs vs account vs entitlements).
+- **Chaining** — one question can need several tools in dependency order; the loop feeds each
+  result back until the model is done.
+- **Error recovery** — `run_tool` never raises (unknown tool, bad args, in-tool exception all
+  return error dicts); the loop tags failures `is_error: true` so the model adapts —
+  clarifies, tries another tool, or escalates. Never crashes, never invents data.
+- **Hardening** — a loop guard (repeated identical call → escalate) and a max-steps fallback,
+  both surfacing a polite customer-facing escalation rather than a developer string.
+
+See [`docs/agent-design.md`](docs/agent-design.md) for the full design and
+[`evals/scenarios.md`](evals/scenarios.md) for the scenario suite (8/8 passing).
 
 ## Build approach
 We implement the **same agent three ways**, increasing abstraction each time, to learn what each layer hides:
@@ -50,6 +71,12 @@ cp .env.example .env   # add your ANTHROPIC_API_KEY
 
 ## Usage
 ```bash
-python -m src.tools     # Day 2: sanity-check the first tool (no model yet)
-# python -m src.agent   # Day 3: the agent loop (coming)
+python -m src.tools                                   # sanity-check tools (no model)
+python -m src.agent "How do I enable row level security?"   # routing → search_docs
+python -m src.agent "Does my plan acct_123 include priority support?"  # chaining
+python -m src.agent "What plan is acct_999 on?"       # error recovery → escalate
+python -m evals.scenarios                             # the 8-scenario suite (-v for answers)
 ```
+
+The same agent is also built two more ways for comparison — `src/agent_toolrunner.py`
+(SDK tool runner) and `src/agent_framework.py` (LlamaIndex `FunctionAgent`).
