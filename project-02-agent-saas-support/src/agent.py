@@ -24,6 +24,13 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 MODEL = "claude-opus-4-8"
 MAX_STEPS = 6  # safety cap so the loop can never run forever
 
+# Day 4: what the CUSTOMER sees when the agent can't finish on its own. Never leak a
+# developer string ("max steps reached") to a customer — escalate politely instead.
+ESCALATION = (
+    "I'm sorry — I wasn't able to resolve this automatically. I've escalated your "
+    "request to a human support agent who will follow up shortly. Thanks for your patience."
+)
+
 SYSTEM = (
     "You are a customer support agent for a B2B SaaS product. Help the customer by "
     "answering their question.\n"
@@ -43,6 +50,7 @@ def run(user_input: str, verbose: bool = True) -> str:
     """Run the agent loop until the model produces a final answer."""
     client = Anthropic()
     messages = [{"role": "user", "content": user_input}]
+    seen_calls = set()   # Day 4: detect the model repeating an identical tool call (a stuck loop)
 
     for step in range(1, MAX_STEPS + 1):
         response = client.messages.create(
@@ -64,6 +72,14 @@ def run(user_input: str, verbose: bool = True) -> str:
             for tu in tool_uses:
                 if verbose:
                     print(f"  [step {step}] model calls {tu.name}({json.dumps(tu.input)})")
+                # Day 4: loop guard. If the model asks for the EXACT same call it already
+                # made, it's stuck — repeating won't help. Escalate instead of spinning.
+                sig = (tu.name, json.dumps(tu.input, sort_keys=True))
+                if sig in seen_calls:
+                    if verbose:
+                        print(f"            -> [LOOP GUARD] repeated call to {tu.name}; escalating")
+                    return ESCALATION
+                seen_calls.add(sig)
                 result = run_tool(tu.name, tu.input)        # <-- OUR code runs the tool (never raises)
                 # Day 3: a result carrying an "error" key is a FAILURE. Tag it so the
                 # model knows the tool failed and should adapt (clarify / try another
@@ -85,7 +101,10 @@ def run(user_input: str, verbose: bool = True) -> str:
         # Any other stop reason — return whatever text we have, safely.
         return "".join(b.text for b in response.content if b.type == "text")
 
-    return "[stopped: reached the maximum number of tool-calling steps]"
+    # Day 4: hit the step cap without finishing — escalate gracefully (no debug leak).
+    if verbose:
+        print(f"            -> [MAX STEPS] reached {MAX_STEPS} steps without finishing; escalating")
+    return ESCALATION
 
 
 def main():
