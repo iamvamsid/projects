@@ -64,13 +64,19 @@ def run(user_input: str, verbose: bool = True) -> str:
             for tu in tool_uses:
                 if verbose:
                     print(f"  [step {step}] model calls {tu.name}({json.dumps(tu.input)})")
-                result = run_tool(tu.name, tu.input)        # <-- OUR code runs the tool
+                result = run_tool(tu.name, tu.input)        # <-- OUR code runs the tool (never raises)
+                # Day 3: a result carrying an "error" key is a FAILURE. Tag it so the
+                # model knows the tool failed and should adapt (clarify / try another
+                # tool / escalate) instead of treating the error dict as a fact.
+                is_error = isinstance(result, dict) and "error" in result
                 if verbose:
-                    print(f"            -> {json.dumps(result)}")
+                    tag = " [ERROR]" if is_error else ""
+                    print(f"            ->{tag} {json.dumps(result)}")
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tu.id,                   # must match the request
                     "content": json.dumps(result),
+                    "is_error": is_error,                   # <-- the model reads this
                 })
             # Hand the results back as the next user turn, then loop again.
             messages.append({"role": "user", "content": tool_results})

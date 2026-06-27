@@ -169,11 +169,26 @@ TOOL_FUNCTIONS = {
 
 
 def run_tool(name: str, tool_input: dict) -> dict:
-    """Dispatch a tool call by name. The agent loop calls this."""
+    """Dispatch a tool call by name. The agent loop calls this.
+
+    Day 3 (error recovery): this must NEVER raise. Whatever goes wrong — unknown
+    tool, bad/missing arguments (TypeError from **tool_input), or the tool itself
+    blowing up — is caught and returned as an {"error": ...} dict. The loop then
+    tags it is_error=True so the model can adapt instead of the program crashing.
+    """
     fn = TOOL_FUNCTIONS.get(name)
     if fn is None:
-        return {"error": "unknown_tool", "name": name}
-    return fn(**tool_input)
+        return {"error": "unknown_tool", "name": name,
+                "known_tools": list(TOOL_FUNCTIONS)}
+    try:
+        return fn(**tool_input)
+    except TypeError as e:
+        # Wrong/missing/extra arguments for this tool.
+        return {"error": "bad_arguments", "tool": name,
+                "got": tool_input, "detail": str(e)}
+    except Exception as e:
+        # Any other failure inside the tool (network, parsing, etc.).
+        return {"error": "tool_exception", "tool": name, "detail": str(e)}
 
 
 if __name__ == "__main__":
