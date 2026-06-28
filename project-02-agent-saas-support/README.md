@@ -52,6 +52,22 @@ fire in parallel; dependent ones chain (e.g. find the plan, *then* look up what 
 See [`docs/agent-design.md`](docs/agent-design.md) for the full design and
 [`evals/scenarios.md`](evals/scenarios.md) for the scenario suite (8/8 passing).
 
+## Memory + observability (Week 7)
+
+- **Multi-turn memory** — `src/conversation.py`. A `Conversation` owns the `messages`
+  list across turns, so follow-ups resolve without re-asking ("what plan am I on?" → "Pro"
+  → "does *it* include SSO?"). Bounded by `max_turns` (default 6); trimming cuts only at
+  customer-turn boundaries so a `tool_use`/`tool_result` pair is never orphaned.
+- **Structured traces** — `src/trace.py`. `run(..., collect_trace=True)` records, per step:
+  model call (stop_reason, tokens from the API `usage` field, latency) and each tool call
+  (name, input, result, `is_error`, latency), plus the outcome. One run → one JSON in
+  `traces/` (gitignored). Roll-ups: total tokens, **$ cost** (per-model rates in
+  `PRICES_PER_MTOK`), latency, tools used.
+- **Trace viewer** — `python -m src.trace_view` (newest), `<file>`, or `--last N`.
+  Renders the timeline + the operational summary (steps · tools · tokens · cost · latency).
+- The scenario suite can emit traces: `python -m evals.scenarios --trace` adds a per-scenario
+  cost/latency table (one full suite run ≈ $0.15).
+
 ## Build approach
 We implement the **same agent three ways**, increasing abstraction each time, to learn what each layer hides:
 1. **Manual loop (raw Anthropic SDK)** — Week 5 (you write the loop by hand).
@@ -75,7 +91,9 @@ python -m src.tools                                   # sanity-check tools (no m
 python -m src.agent "How do I enable row level security?"   # routing → search_docs
 python -m src.agent "Does my plan acct_123 include priority support?"  # chaining
 python -m src.agent "What plan is acct_999 on?"       # error recovery → escalate
-python -m evals.scenarios                             # the 8-scenario suite (-v for answers)
+python -m src.conversation                            # multi-turn memory demo (Week 7)
+python -m evals.scenarios                             # the 8-scenario suite (-v answers, --trace cost)
+python -m src.trace_view                              # view the newest trace (--last N to list)
 ```
 
 The same agent is also built two more ways for comparison — `src/agent_toolrunner.py`

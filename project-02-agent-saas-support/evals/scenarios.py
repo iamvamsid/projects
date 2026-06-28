@@ -90,12 +90,15 @@ def _check(sc: dict, answer: str, tools: list[str]) -> list[str]:
 
 def main():
     verbose = "-v" in sys.argv
+    trace_on = "--trace" in sys.argv   # Day 6: collect a trace per scenario + show cost/latency
     passed = 0
+    vitals = []                         # (id, summary) when tracing
     print(f"Running {len(SCENARIOS)} scenarios\n" + "=" * 60)
     for sc in SCENARIOS:
         _calls.clear()
         try:
-            answer = run(sc["q"], verbose=False)
+            result = run(sc["q"], verbose=False, collect_trace=trace_on)
+            answer, tr = result if trace_on else (result, None)
         except Exception as e:                      # the agent must NEVER crash
             print(f"[CRASH] {sc['id']}: {e}\n")
             continue
@@ -104,6 +107,8 @@ def main():
         status = "PASS" if not fails else "FAIL"
         if not fails:
             passed += 1
+        if tr is not None:
+            vitals.append((sc["id"], tr.summary()))
         print(f"[{status}] {sc['id']}")
         print(f"       q: {sc['q']}")
         print(f"   tools: {tools or 'none'}")
@@ -114,6 +119,18 @@ def main():
         print()
     print("=" * 60)
     print(f"{passed}/{len(SCENARIOS)} scenarios passed")
+
+    if vitals:   # Day 6: aggregate cost/latency across the suite
+        print("\nTrace vitals (cost / latency per scenario):")
+        total_cost = total_ms = 0.0
+        for sid, sm in vitals:
+            total_cost += sm["cost_usd"]
+            total_ms += sm["latency_ms"]
+            print(f"  {sid:<22} {sm['steps']} steps  "
+                  f"{sm['input_tokens']:>5} in/{sm['output_tokens']:>4} out  "
+                  f"${sm['cost_usd']:.5f}  {sm['latency_ms']:.0f}ms")
+        print(f"  {'TOTAL':<22} {'':14} ${total_cost:.5f}  {total_ms:.0f}ms"
+              f"  (one full suite run)")
 
 
 if __name__ == "__main__":

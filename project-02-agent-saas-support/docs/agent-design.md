@@ -105,3 +105,34 @@ do the read, refuse + escalate the action *in the same turn*.
 
 **Proof.** `evals/scenarios.py` — 8 scenarios (routing, chaining, failure modes), 8/8 pass;
 any exception from the loop is a crash-fail.
+
+---
+
+## Week 7 — memory + observability
+Week 6 made the agent robust; Week 7 makes it operable.
+
+**Memory (`src/conversation.py`).** A `Conversation` owns the `messages` list across turns
+(vs `run()`, which starts fresh each call), so follow-ups resolve without re-asking. The
+assistant's final answer is appended to history (so the next turn remembers it), and the
+loop guard resets per-turn (re-calling a tool in a later turn is legitimate). Bounded by
+`max_turns` (default 6): `_trim()` keeps the most recent N **customer** turns and cuts ONLY
+at a customer-turn boundary — never between a `tool_use` and its `tool_result`, which would
+orphan the result and make the API reject the history. Verified by a deterministic
+`_valid_pairing()` check plus a live continuity test (guardrail + routing hold mid-conversation).
+
+**Observability (`src/trace.py`, `src/trace_view.py`).** `run(..., collect_trace=True)` builds a
+structured `Trace`: ordered steps (model `stop_reason`, input/output tokens from the API `usage`
+field, latency) and per-step tool calls (name, input, result, `is_error`, latency), plus the
+`outcome`. Tokens → **$ cost** via `PRICES_PER_MTOK` (opus-4-8 $5/$25 per MTok). One run → one
+JSON under `traces/` (gitignored — run artifacts). `trace_view` renders the timeline + the
+operational summary (steps · tools · tokens · cost · latency). The scenario suite emits traces
+with `--trace`. Tracing is opt-in, so default behavior and the 8/8 suite are unaffected.
+
+**Trace format (one run):**
+```
+Trace { user_input, model, started_at, outcome, total_latency_ms,
+        steps: [ Step { n, stop_reason, input_tokens, output_tokens, model_latency_ms,
+                        tool_calls: [ ToolCall { name, input, result, is_error, latency_ms } ] } ],
+        final_text }
+  + roll-ups: total_input_tokens, total_output_tokens, total_cost_usd, tools_used
+```
