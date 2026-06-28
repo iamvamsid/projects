@@ -2,7 +2,13 @@
 
 > An AI **agent** that handles a customer support ticket end-to-end: it understands the question, **looks up live information using tools**, and either resolves the question or escalates to a human. Where Project 1 *answered from documents*, this one *acts*.
 
-**Status:** ✅ Week 6 — multi-tool agent working: 3 tools, multi-step chaining, graceful error recovery, 8/8 scenario suite passing.
+**Status:** ✅ Working end-to-end — 3 tools, routing + multi-step chaining, graceful error recovery, multi-turn memory, and per-run observability (token/cost/latency traces). 8/8 scenario suite passing.
+
+## Architecture
+
+![Architecture: a customer turn enters an agent loop that routes and chains across three tools — account status, doc search reusing Project 1's RAG index, and plan entitlements — backed by bounded memory, with every run emitting a trace of steps, tokens, cost, and latency.](docs/architecture.svg)
+
+One chat turn enters the **agent loop**; the model *routes* to the right tool and *chains* tools when a question needs several. Three tools back three sources — account state, **`search_docs` reusing Project 1's RAG index**, and plan entitlements. **Memory** carries context across turns (bounded), and **every run emits a trace** (steps · tokens · cost · latency).
 
 ## Project 1 vs Project 2
 
@@ -67,6 +73,23 @@ See [`docs/agent-design.md`](docs/agent-design.md) for the full design and
   Renders the timeline + the operational summary (steps · tools · tokens · cost · latency).
 - The scenario suite can emit traces: `python -m evals.scenarios --trace` adds a per-scenario
   cost/latency table (one full suite run ≈ $0.15).
+
+**What a run looks like** (`python -m src.trace_view`) — a two-tool chain, fully costed:
+
+```
+Question : Does my plan acct_123 include priority support?
+  step 1  [tool_use ]   1006 in /  77 out   $0.00696   2172ms
+        → get_account_status({"account_id": "acct_123"})   ✓ { ... "plan": "Pro" ... }
+  step 2  [tool_use ]   1126 in /  69 out   $0.00736   1556ms
+        → get_plan_features({"plan": "Pro"})               ✓ { ... "priority_support": true ... }
+  step 3  [end_turn ]   1249 in / 117 out   $0.00917   2614ms
+Answer: Yes — your Pro plan includes priority support ...
+SUMMARY  answered · 3 steps · tools: get_account_status, get_plan_features
+         3381 in / 263 out tokens · $0.023480 · 6343ms
+```
+
+Note the input tokens climbing per step (1006 → 1126 → 1249): the transcript is re-sent each
+loop, so cost grows with the conversation — which is why memory is bounded.
 
 ## Build approach
 We implement the **same agent three ways**, increasing abstraction each time, to learn what each layer hides:
