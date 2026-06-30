@@ -8,3 +8,6 @@ pydantic>=2.0.0            # typed data models / validation
 llama-index-core>=0.11.0              # the framework: ingestion, indexing, retrieval, query engines
 llama-index-llms-anthropic>=0.3.0     # adapter so LlamaIndex can use Claude as the LLM
 llama-index-embeddings-openai>=0.2.0  # adapter so LlamaIndex can use OpenAI embeddings
+
+# --- Hybrid retrieval (Week 9) ---
+rank-bm25>=0.2.2          # BM25 keyword retriever, fused with vector via RRF

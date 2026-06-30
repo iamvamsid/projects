@@ -22,6 +22,7 @@ from pathlib import Path
 from anthropic import Anthropic
 
 from src.retrieve import retrieve
+from src.retrieve_hybrid import retrieve_hybrid
 from src.generate import SYSTEM, MODEL, _format_context
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -41,18 +42,19 @@ def load_answerable():
 
 
 # ============================================================ RETRIEVAL
-def evaluate_retrieval():
+def evaluate_retrieval(retrieve_fn=retrieve):
     items = load_answerable()
     hits = {1: 0, 3: 0, 5: 0}
     recall = {1: 0.0, 3: 0.0, 5: 0.0}
     rr_sum = 0.0
 
-    print(f"Retrieval eval over {len(items)} answerable questions (top_k={TOP_K})\n")
+    label = "HYBRID (vector+BM25+RRF)" if retrieve_fn is retrieve_hybrid else "VECTOR (baseline)"
+    print(f"Retrieval eval [{label}] over {len(items)} answerable questions (top_k={TOP_K})\n")
     print(f"{'Q':>3}  {'rank':>5}  {'recall@5':>9}  expected")
     print("-" * 70)
 
     for d in items:
-        nodes = retrieve(d["question"], k=TOP_K)
+        nodes = retrieve_fn(d["question"], k=TOP_K)
         retrieved = [n.node.metadata.get("file_name") for n in nodes]
         expected = set(d["expected_sources"])
 
@@ -194,6 +196,8 @@ def evaluate_generation():
 def main():
     if "--gen" in sys.argv:
         evaluate_generation()
+    elif "--hybrid" in sys.argv:
+        evaluate_retrieval(retrieve_fn=retrieve_hybrid)
     else:
         evaluate_retrieval()
 
